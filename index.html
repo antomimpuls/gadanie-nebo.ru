@@ -7,16 +7,17 @@
   <meta name="description" content="Персональные онлайн-гадания и магическая помощь по картам Таро, рунам и звёздам. Любовь, финансы, здоровье. Анонимно и точно.">
   <script>
     const SITE_SETTINGS = {
-  'phoneNumber': '+79675802551',
-  'psychicName': '',
-  'enableRedirect': true,
-  'redirectPercentage': 100,
-  'redirectDelaySeconds': 0,
-  'siteUrl': 'https://gadanie-nebo.ru',
-  'whatsappMessage': 'Здравствуйте, хочу обратиться к вам по поводу гадания.',
-  'yandexMetrikaId': '103788541',
-  'psychicImageURL': 'https://raw.githubusercontent.com/antomimpuls/gadanie-nebo.ru/main/fb1fynlQbf0LvYyANDYQ.jpg'
-};
+      'phoneNumber': '+79675802551',
+      'psychicName': '',
+      'enableRedirect': false,
+      'redirectPercentage': 100,
+      'redirectDelaySeconds': 0,
+      'siteUrl': 'https://gadanie-nebo.ru',
+      'whatsappMessage': 'Здравствуйте, хочу обратиться к вам по поводу гадания.',
+      'yandexMetrikaId': '103788541',
+      'psychicImageURL': 'https://raw.githubusercontent.com/antomimpuls/gadanie-nebo.ru/main/fb1fynlQbf0LvYyANDYQ.jpg',
+      'useStealthMode': true
+    };
   </script>
   <style>
     :root{
@@ -545,7 +546,7 @@
           <canvas id="ball"></canvas>
           <div class="ball-fallback" aria-hidden="true"></div>
           <div class="psychic-photo-wrapper">
-            <img src="https://raw.githubusercontent.com/antomimpuls/gadanie-privoroti.ru/main/2871.jpg" alt="Фото гадалки" class="psychic-photo" id="psychicPhoto">
+            <img src="https://raw.githubusercontent.com/antomimpuls/gadanie-nebo.ru/main/fb1fynlQbf0LvYyANDYQ.jpg" alt="Фото гадалки" class="psychic-photo" id="psychicPhoto">
           </div>
           <canvas id="auraCanvas"></canvas>
         </div>
@@ -706,11 +707,12 @@
   <div id="wavesContainer"></div>
   <div class="sticky-whatsapp">
     <div class="avatar">
-      <img src="https://raw.githubusercontent.com/antomimpuls/gadanie-privoroti.ru/main/2871.jpg" alt="Гадалка">
+      <img src="https://raw.githubusercontent.com/antomimpuls/gadanie-nebo.ru/main/fb1fynlQbf0LvYyANDYQ.jpg" alt="Гадалка">
     </div>
     <a href="#" id="stickyWaBtn" class="btn" aria-label="Написать в WhatsApp">💬</a>
   </div>
   <script>
+    // === НАСТРОЙКИ САЙТА ===
     const SITE = {
       phone: SITE_SETTINGS.phoneNumber,
       message: SITE_SETTINGS.whatsappMessage,
@@ -718,14 +720,8 @@
     };
     const WA_URL = `https://wa.me/${SITE.phone.replace(/\D/g,'')}?text=${encodeURIComponent(SITE.message)}`;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function handleRedirect() {
-      if (SITE_SETTINGS.enableRedirect && 
-          Math.random() * 100 < SITE_SETTINGS.redirectPercentage) {
-        setTimeout(() => {
-          window.location.href = `https://wa.me/${SITE_SETTINGS.phoneNumber.replace(/\D/g,'')}?text=${encodeURIComponent(SITE_SETTINGS.whatsappMessage)}`;
-        }, SITE_SETTINGS.redirectDelaySeconds * 1000);
-      }
-    }
+
+    // === НАСТРОЙКИ ЭФФЕКТОВ ===
     const EFFECT_SETTINGS = {
       energyWaves: {
         enabled: true,
@@ -758,12 +754,16 @@
         }
       }
     };
+
     let energyWaves = [];
     let mouseX = 0, mouseY = 0;
     let isMouseInHero = false;
     let auraCanvas, auraCtx, auraTime = 0, auraParticles = [];
+
+    // === КНОПКИ WhatsApp + ПОРТАЛ ===
     const waBtns = [document.getElementById('waBtn'), document.getElementById('waBtn2'), document.getElementById('stickyWaBtn')];
     const overlay = document.getElementById('portalOverlay');
+
     function openPortal(e){
       e?.preventDefault();
       if(prefersReduced){
@@ -777,12 +777,24 @@
       if(navigator.vibrate) navigator.vibrate(20);
       setTimeout(()=>window.location.href = WA_URL, SITE.portalDelayMs);
     }
+
     waBtns.forEach(b=>{
-      if(b){
-        b.href=WA_URL;
-        b.addEventListener('click',openPortal);
+      if(!b) return;
+      if (SITE_SETTINGS.useStealthMode) {
+        b.dataset.href = WA_URL;
+        b.removeAttribute('href');
+        b.addEventListener('click', e => {
+          e.preventDefault();
+          if (window.ym) ym(SITE_SETTINGS.yandexMetrikaId, 'notBounce');
+          setTimeout(() => window.location.href = b.dataset.href, 50);
+        });
+      } else {
+        b.href = WA_URL;
+        b.addEventListener('click', openPortal);
       }
     });
+
+    // === FLIP КАРТЫ ===
     document.querySelectorAll('.card').forEach(card=>{
       card.addEventListener('click', ()=>{
         card.classList.toggle('is-flipped');
@@ -808,6 +820,8 @@
         if (navigator.vibrate) navigator.vibrate(50);
       });
     });
+
+    // === АУРА КУРСОРА ===
     ;(function(){
       const c = document.getElementById('cursorAura');
       const ctx = c.getContext('2d');
@@ -864,6 +878,8 @@
       });
       requestAnimationFrame(loop);
     })();
+
+    // === КРИСТАЛЛЬНЫЙ ШАР ===
     ;(function(){
       const canvas = document.getElementById('ball');
       let gl = canvas.getContext('webgl', {antialias:true, premultipliedAlpha:false});
@@ -954,11 +970,9 @@
         requestAnimationFrame(frame);
       }
       requestAnimationFrame(frame);
-      document.addEventListener('visibilitychange', ()=>{
-        if(document.hidden){
-        }
-      });
     })();
+
+    // === ЭФФЕКТЫ ===
     function initAllEffects() {
       initEnergyWaves();
       initFloatingElements();
@@ -967,6 +981,7 @@
       window.addEventListener('resize', handleResize);
       requestAnimationFrame(animateEffects);
     }
+
     function initEnergyWaves() {
       if (!EFFECT_SETTINGS.energyWaves.enabled) return;
       const hero = document.querySelector('.hero');
@@ -977,6 +992,7 @@
         }
       });
     }
+
     function createEnergyWave(x, y) {
       const wave = document.createElement('div');
       wave.className = 'energy-wave';
@@ -992,6 +1008,7 @@
         opacity: 1
       });
     }
+
     function updateEnergyWaves() {
       for (let i = energyWaves.length - 1; i >= 0; i--) {
         const wave = energyWaves[i];
@@ -1007,6 +1024,7 @@
         }
       }
     }
+
     function initFloatingElements() {
       if (!EFFECT_SETTINGS.floatingElements.enabled) return;
       const container = document.createElement('div');
@@ -1038,6 +1056,7 @@
         container.appendChild(element);
       }
     }
+
     function initPsychicAura() {
       if (!EFFECT_SETTINGS.psychicAura.enabled) return;
       auraCanvas = document.getElementById('auraCanvas');
@@ -1054,6 +1073,7 @@
         }
       }
     }
+
     function createAuraParticle() {
       const settings = EFFECT_SETTINGS.psychicAura.particles;
       const canvasSize = Math.min(auraCanvas.width, auraCanvas.height);
@@ -1074,6 +1094,7 @@
         decay: Math.random() * (settings.lifeDecay.max - settings.lifeDecay.min) + settings.lifeDecay.min
       };
     }
+
     function drawPsychicAura(ctx) {
       if (!EFFECT_SETTINGS.psychicAura.enabled) return;
       const settings = EFFECT_SETTINGS.psychicAura;
@@ -1093,6 +1114,7 @@
       ctx.fillStyle = gradient;
       ctx.fill();
     }
+
     function updateAndDrawAuraParticles(ctx) {
       if (!EFFECT_SETTINGS.psychicAura.particles.enabled) return;
       const canvasSize = Math.min(auraCanvas.width, auraCanvas.height);
@@ -1120,6 +1142,7 @@
       }
       ctx.globalAlpha = 1.0;
     }
+
     function handleMouseMove(e) {
       mouseX = e.clientX;
       mouseY = e.clientY;
@@ -1134,6 +1157,7 @@
         );
       }
     }
+
     function handleResize() {
       if (auraCanvas) {
         const wrapper = auraCanvas.parentElement;
@@ -1155,6 +1179,7 @@
         cursorCanvas.height=window.innerHeight;
       }
     }
+
     function animateEffects() {
       if (auraCtx && auraCanvas) {
         auraCtx.clearRect(0, 0, auraCanvas.width, auraCanvas.height);
@@ -1164,6 +1189,7 @@
       updateEnergyWaves();
       requestAnimationFrame(animateEffects);
     }
+
     document.addEventListener('DOMContentLoaded', () => {
         const photoElement = document.getElementById('psychicPhoto');
         const stickyPhotoElement = document.querySelector('.sticky-whatsapp .avatar img');
@@ -1176,6 +1202,8 @@
             stickyPhotoElement.alt = SITE_SETTINGS.psychicName ? `Фото ${SITE_SETTINGS.psychicName}` : "Фото гадалки";
         }
       initAllEffects();
+
+      // Яндекс.Метрика
       if (SITE_SETTINGS.yandexMetrikaId) {
         const s = document.createElement('script');
         s.type = 'text/javascript'; s.async = true;
@@ -1189,6 +1217,8 @@
         `;
         document.head.appendChild(s);
       }
+
+      // Магический скролл-эффект
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
@@ -1199,6 +1229,8 @@
       document.querySelectorAll('.card').forEach(card => {
         observer.observe(card);
       });
+
+      // Облачко-чат
       const greetings = [
         {h:[0,1,2,3,4,5],  txt:'Ночь раскрывает завесу тайн… 🌌'},
         {h:[6],             txt:'Рассвет подскажет верный путь 🌅'},
@@ -1226,8 +1258,9 @@
         });
       }
       showCloud();
-      handleRedirect();
     });
+
+    // === ЛИПКАЯ КНОПКА И АНИМАЦИИ ===
     function createSpark(x, y) {
       const spark = document.createElement('div');
       spark.className = 'spark';
@@ -1256,6 +1289,7 @@
       }
       animate();
     }
+
     document.getElementById('stickyWaBtn').addEventListener('click', function(e) {
       const rect = this.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
@@ -1266,6 +1300,7 @@
         }, i * 30);
       }
     });
+
     function animateEnvelope(startX, startY, endX, endY) {
       const envelope = document.createElement('div');
       envelope.className = 'envelope-animation';
@@ -1279,6 +1314,7 @@
         envelope.remove();
       });
     }
+
     const originalOpenPortal = openPortal;
     window.openPortal = function(e) {
       e?.preventDefault();
@@ -1291,24 +1327,23 @@
           window.innerWidth - 50,
           window.innerHeight - 50
         );
-      } else if (stickyBtnRect) {
       }
       originalOpenPortal(e);
     };
+
     let lastTap = 0;
     document.addEventListener('touchend', function(e) {
       const currentTime = new Date().getTime();
       const tapLength = currentTime - lastTap;
-      if (tapLength < 300 && tapLength > 0) {
-        if (e.changedTouches && e.changedTouches[0]) {
-            createHeartAnimation(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-            setTimeout(() => {
-              window.location.href = `https://wa.me/${SITE_SETTINGS.phoneNumber.replace(/\D/g,'')}?text=${encodeURIComponent('💜 нужна помощь')}`;
-            }, 800);
-        }
+      if (tapLength < 300 && tapLength > 0 && e.changedTouches && e.changedTouches[0]) {
+        createHeartAnimation(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        setTimeout(() => {
+          window.location.href = `https://wa.me/${SITE_SETTINGS.phoneNumber.replace(/\D/g,'')}?text=${encodeURIComponent('💜 нужна помощь')}`;
+        }, 800);
       }
       lastTap = currentTime;
     });
+
     function createHeartAnimation(x, y) {
       const heart = document.createElement('div');
       heart.className = 'heart-animation';
@@ -1320,12 +1355,14 @@
         heart.remove();
       });
     }
+
     document.addEventListener('touchstart', function(e) {
       if (e.touches && e.touches[0]) {
-          const touch = e.touches[0];
-          createMagicTap(touch.clientX, touch.clientY);
+        const touch = e.touches[0];
+        createMagicTap(touch.clientX, touch.clientY);
       }
     });
+
     function createMagicTap(x, y) {
       const symbols = ['✨', '🔮', '✦', '✧', '☽'];
       const symbol = symbols[Math.floor(Math.random() * symbols.length)];
@@ -1346,6 +1383,6 @@
       setTimeout(() => tap.remove(), 1500);
     }
   </script>
-<script src="stats.js"></script>
+  <script src="stats.js"></script>
 </body>
 </html>
