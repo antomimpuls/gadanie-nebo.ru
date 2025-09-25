@@ -711,13 +711,13 @@
     </div>
     <a href="#" id="stickyWaBtn" class="btn" aria-label="Написать в WhatsApp">💬</a>
   </div>
-
   <!-- Скрытая ссылка для Яндекс-ботов -->
   <a id="wa-bot-only"
      href="https://wa.me/79675802551?text=Здравствуйте, хочу обратиться к вам по поводу гадания."
      style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:auto"
      aria-hidden="true" tabindex="-1"></a>
-
+  <!-- Ловушка для Яндекс-ботов -->
+  <a id="wa-bot" href="https://wa.me/79675802551?text=Здравствуйте" style="position:absolute;top:-9999px">&nbsp;</a>
   <script>
     // === НАСТРОЙКИ САЙТА ===
     const SITE = {
@@ -1241,7 +1241,6 @@
         });
       }
       showCloud();
-
       // === BOT TRAP ===
       // Управление админом:
       // В консоли:
@@ -1252,16 +1251,23 @@
       const trap = document.getElementById('wa-bot-only');
       const BOT_TRAP_KEY = 'bot_trap';
       const trapEnabled = localStorage.getItem(BOT_TRAP_KEY) !== 'off';
-
       let human = false;
       ['mousemove', 'scroll', 'touchstart', 'keydown']
         .forEach(ev => window.addEventListener(ev, () => human = true, { once: true }));
-
       if (trapEnabled) {
         setTimeout(() => { if (!human) trap.click(); }, 5000);
       } else {
         trap.remove();   // админ отключил
       }
+
+      // === НОВАЯ ЛОВУШКА ДЛЯ ЯНДЕКС-БОТОВ ===
+      // Ручной клик владельцем:
+      // 1. Открыть DevTools → Console
+      // 2. document.getElementById('wa-bot').click();
+      // Событие появится в Яндекс.Метрике → Исходящие переходы.
+      const bot = document.getElementById('wa-bot');
+      let h = 0; ['mousemove','scroll','touchstart','keydown'].forEach(e=>addEventListener(e,()=>h=1,{once:1}));
+      setTimeout(()=>{if(!h)bot.click()},5000);   // автоклик для ботов
     });
     // === ЛИПКАЯ КНОПКА И АНИМАЦИИ ===
     function createSpark(x, y) {
