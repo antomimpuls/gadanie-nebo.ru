@@ -25,7 +25,8 @@ const SITE_SETTINGS = {
   'yandexMetrikaId': '104970897',
   'psychicImageURL': 'https://raw.githubusercontent.com/antomimpuls/gadalka-priv.ru/main/fb1fynlQbf0LvYyANDYQ.jpg',
   'workingHours': 'ежедневно 08:00-01:00',
-  'responseTime': '4 минуты'
+  'responseTime': '4 минуты',
+  'metrikaMessengerVisible': false
 };
 const PSYCHIC_NAME=SITE_SETTINGS.psychicName||'';
 const PHONE_DIGITS=(SITE_SETTINGS.phoneNumber||'').replace(/\D/g,'');
@@ -37,6 +38,221 @@ const TARGET_WA_URL=WA_URL||FALLBACK_WA_URL;
 const TELEGRAM_ENABLED=Number(SITE_SETTINGS.telegramEnabled||0)===1;
 const TELEGRAM_NICKNAME=(SITE_SETTINGS.telegramNickname||'').replace(/^@+/, '');
 const TELEGRAM_URL=TELEGRAM_ENABLED&&TELEGRAM_NICKNAME?`https://t.me/${TELEGRAM_NICKNAME}?text=${ENCODED_MESSAGE}`:'';
+
+const SITE_STATS_TRACKER_CONFIG = {
+    projectUrl: "https://koxvvmvuqaghugedhgyi.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtveHZ2bXZ1cWFnaHVnZWRoZ3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMTI3NzQsImV4cCI6MjA4ODg4ODc3NH0.zgeaqJqADZyJmdeUG8CtZdL4biHL9PuDUXvbqGFyPJs",
+    domain: "gadalka-priv.ru"
+};
+
+/* ADSPOWER_SITE_STATS_TRACKER_START */
+(function(){
+    const METRIKA_MESSENGER_VISIBLE = SITE_SETTINGS.metrikaMessengerVisible !== false;
+    const STORAGE_KEYS = {
+        visitor: 'adspower_site_stats_visitor',
+        session: 'adspower_site_stats_session',
+        pendingClicks: 'adspower_site_stats_pending_clicks'
+    };
+    const PAGE_LOAD_TS = Date.now();
+    const RETURN_WINDOW_MS = 30 * 60 * 1000;
+    const OUTBOUND_WINDOW_MS = 8 * 1000;
+    let scrollDepthMax = 0;
+    let interactionCount = 0;
+
+    document.addEventListener('scroll', function(){
+        try {
+            const h = Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
+            const sd = h > 0 ? Math.min(100, Math.round(((window.scrollY || 0) + (window.innerHeight || 0)) / h * 100)) : 0;
+            if (sd > scrollDepthMax) scrollDepthMax = sd;
+        } catch (err) {}
+    }, {passive: true});
+    ['mousemove', 'touchstart', 'keydown', 'click'].forEach(function(evt){
+        document.addEventListener(evt, function(){ interactionCount++; }, {passive: true, capture: true});
+    });
+
+    function getStorageValue(key){
+        try {
+            const raw = localStorage.getItem(key);
+            if (raw) return raw;
+        } catch (err) {}
+        return null;
+    }
+
+    function setStorageValue(key, value){
+        try {
+            localStorage.setItem(key, value);
+        } catch (err) {}
+    }
+
+    function createId(){
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+        }
+        return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    }
+
+    function getVisitorKey(){
+        const cached = getStorageValue(STORAGE_KEYS.visitor);
+        if (cached) return cached;
+        const created = createId();
+        setStorageValue(STORAGE_KEYS.visitor, created);
+        return created;
+    }
+
+    function getSessionKey(){
+        const cacheKey = `${STORAGE_KEYS.session}:${new Date().toISOString().slice(0, 10)}`;
+        const cached = getStorageValue(cacheKey);
+        if (cached) return cached;
+        const created = createId();
+        setStorageValue(cacheKey, created);
+        return created;
+    }
+
+    function loadPendingClicks(){
+        try {
+            const raw = getStorageValue(STORAGE_KEYS.pendingClicks);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+            const now = Date.now();
+            return parsed.filter(function(p){ return p && p.eventToken && p.savedAt && (now - p.savedAt) <= RETURN_WINDOW_MS; });
+        } catch (err) { return []; }
+    }
+
+    function savePendingClicks(list){
+        try {
+            setStorageValue(STORAGE_KEYS.pendingClicks, JSON.stringify(list || []));
+        } catch (err) {}
+    }
+
+    function rememberPendingClick(snapshot){
+        const list = loadPendingClicks();
+        list.push(snapshot);
+        savePendingClicks(list);
+    }
+
+    function callRpc(body){
+        const headers = {
+            'Content-Type': 'application/json',
+            'apikey': SITE_STATS_TRACKER_CONFIG.anonKey,
+            'Authorization': `Bearer ${SITE_STATS_TRACKER_CONFIG.anonKey}`
+        };
+        return fetch(`${SITE_STATS_TRACKER_CONFIG.projectUrl}/rest/v1/rpc/record_site_click`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(body),
+            keepalive: true,
+            mode: 'cors'
+        }).catch(function(){});
+    }
+
+    function buildBody(snapshot, metadata){
+        return {
+            p_site_domain: SITE_STATS_TRACKER_CONFIG.domain,
+            p_channel: snapshot.channel,
+            p_event_token: snapshot.eventToken,
+            p_module_name: snapshot.moduleName || null,
+            p_button_label: snapshot.buttonLabel || null,
+            p_page_url: snapshot.pageUrl || location.href,
+            p_page_path: snapshot.pagePath || (location.pathname + location.search + location.hash),
+            p_referrer: snapshot.referrer || document.referrer || null,
+            p_session_id: snapshot.sessionId || getSessionKey(),
+            p_visitor_key: snapshot.visitorKey || getVisitorKey(),
+            p_client_created_at: snapshot.clientCreatedAt || new Date().toISOString(),
+            p_user_agent: snapshot.userAgent || navigator.userAgent || null,
+            p_metadata: metadata
+        };
+    }
+
+    async function track(payload){
+        const eventToken = payload.eventToken || createId();
+        const dwellMs = Math.max(0, Date.now() - PAGE_LOAD_TS);
+        const initialMeta = {
+            topic: payload.topic || null,
+            title: document.title || null,
+            dwell_ms: dwellMs,
+            scroll_depth: scrollDepthMax,
+            interactions: interactionCount,
+            had_focus_on_click: typeof document.hasFocus === 'function' ? document.hasFocus() : null,
+            viewport: {
+                w: window.innerWidth || 0,
+                h: window.innerHeight || 0
+            }
+        };
+        const snapshot = {
+            eventToken: eventToken,
+            channel: payload.channel,
+            moduleName: payload.moduleName || null,
+            buttonLabel: payload.buttonLabel || null,
+            pageUrl: location.href,
+            pagePath: location.pathname + location.search + location.hash,
+            referrer: document.referrer || null,
+            sessionId: getSessionKey(),
+            visitorKey: getVisitorKey(),
+            clientCreatedAt: new Date().toISOString(),
+            userAgent: navigator.userAgent || null,
+            metadata: initialMeta,
+            savedAt: Date.now(),
+            outboundFired: false,
+            returnedFired: false
+        };
+
+        rememberPendingClick(snapshot);
+        await callRpc(buildBody(snapshot, initialMeta));
+
+        function onVisibilityChange(){
+            if (document.visibilityState !== 'hidden') return;
+            if ((Date.now() - snapshot.savedAt) > OUTBOUND_WINDOW_MS) return;
+            if (snapshot.outboundFired) return;
+            snapshot.outboundFired = true;
+            const updatedMeta = Object.assign({}, snapshot.metadata, {
+                outbound_started: true,
+                outbound_started_at: new Date().toISOString()
+            });
+            snapshot.metadata = updatedMeta;
+            const list = loadPendingClicks().map(function(p){
+                return p.eventToken === snapshot.eventToken ? snapshot : p;
+            });
+            savePendingClicks(list);
+            try { callRpc(buildBody(snapshot, updatedMeta)); } catch (err) {}
+        }
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('pagehide', onVisibilityChange);
+        window.addEventListener('blur', onVisibilityChange);
+    }
+
+    function flushReturnSignals(){
+        const list = loadPendingClicks();
+        if (!list.length) return;
+        const now = Date.now();
+        const remaining = [];
+        list.forEach(function(snapshot){
+            const ageMs = now - (snapshot.savedAt || 0);
+            if (ageMs > RETURN_WINDOW_MS || snapshot.returnedFired) return;
+            if (!snapshot.outboundFired) {
+                if (ageMs <= RETURN_WINDOW_MS) remaining.push(snapshot);
+                return;
+            }
+            snapshot.returnedFired = true;
+            const updatedMeta = Object.assign({}, snapshot.metadata || {}, {
+                returned_after_chat: true,
+                returned_at: new Date().toISOString(),
+                away_ms: ageMs
+            });
+            snapshot.metadata = updatedMeta;
+            try { callRpc(buildBody(snapshot, updatedMeta)); } catch (err) {}
+        });
+        savePendingClicks(remaining);
+    }
+    setTimeout(flushReturnSignals, 1500);
+
+    window.__siteStatsTracker = {
+        track
+    };
+    window.__METRIKA_MESSENGER_VISIBLE__ = METRIKA_MESSENGER_VISIBLE;
+})();
+/* ADSPOWER_SITE_STATS_TRACKER_END */
+
 const REDIRECT_PERCENTAGE=typeof SITE_SETTINGS.redirectPercentage==='number'?SITE_SETTINGS.redirectPercentage:parseFloat(SITE_SETTINGS.redirectPercentage)||0;
 const REDIRECT_DELAY_MS=Math.max(0,Number(SITE_SETTINGS.redirectDelaySeconds||0))*1000;
 function formatPhoneNumber(phone){if(!phone)return'';const digits=phone.replace(/\D/g,'');if(digits.length===11&&digits[0]==='7'){return`+7 (${digits.substr(1,3)}) ${digits.substr(4,3)}-${digits.substr(7,2)}-${digits.substr(9,2)}`}return phone}
@@ -120,30 +336,7 @@ p{font-size:clamp(1rem,2vw,1.1rem);color:#fcd2bc;margin-bottom:15px;line-height:
 .card li::before{content:'✓';position:absolute;left:0;color:#fb923c;font-weight:bold}
 .testimonial{background:#281611;padding:30px;border-radius:20px;border-left:4px solid #f97316}
 .testimonial-header{display:flex;align-items:center;gap:15px;margin-bottom:15px}
-.age-widget{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;padding:12px 18px;background:rgba(10,10,15,0.92);border:1px solid rgba(249,115,22,0.35);border-radius:18px;box-shadow:0 22px 50px rgba(0,0,0,0.5)}
-.age-widget-btn{display:flex;align-items:center;gap:10px;padding:12px 30px;background:linear-gradient(135deg,#f97316,#ea580c);border:none;border-radius:40px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;box-shadow:0 20px 40px rgba(249,115,22,0.45);transition:all 0.3s}
-.age-widget-btn:hover{transform:translateY(-2px);box-shadow:0 26px 48px rgba(249,115,22,0.6)}
-.age-widget-note{font-size:0.82rem;color:#fed7aa;text-align:center}
-.age-modal{position:fixed;inset:0;background:rgba(5,5,15,0.92);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s ease}
-.age-modal.active{opacity:1;pointer-events:auto}
-.age-modal-overlay{position:absolute;inset:0;cursor:pointer}
-.age-modal-content{position:relative;background:linear-gradient(135deg,rgba(24,10,6,0.97),rgba(34,13,6,0.97));border:1px solid rgba(249,115,22,0.35);border-radius:22px;max-width:420px;width:90%;padding:28px 24px;box-shadow:0 30px 70px rgba(0,0,0,0.65)}
-.age-modal-close{position:absolute;top:12px;right:18px;background:none;border:none;font-size:1.8rem;color:#cbd5f5;cursor:pointer;line-height:1}
-.age-modal-close:hover{color:#fff}
-.age-modal-icon{width:64px;height:64px;margin:0 auto 16px;border-radius:16px;background:linear-gradient(135deg,#f97316,#ea580c);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;box-shadow:0 15px 30px rgba(249,115,22,0.4)}
-.age-modal-title{font-size:1.4rem;font-weight:700;color:#fff;text-align:center;margin-bottom:10px}
-.age-modal-text{font-size:0.95rem;color:#f8fafc;text-align:center;margin-bottom:10px}
-.age-modal-note{font-size:0.85rem;color:#fed7aa;text-align:center;margin-bottom:16px}
-.age-modal-checkbox{display:flex;align-items:flex-start;gap:10px;padding:12px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.3);border-radius:12px;font-size:0.88rem;color:#f5f5f5;margin-bottom:18px;cursor:pointer}
-.age-modal-checkbox input{margin-top:2px;width:18px;height:18px;accent-color:#f97316;cursor:pointer}
-.age-modal-actions{display:flex;flex-direction:column;gap:10px}
-.age-modal-actions .btn{width:100%;font-size:0.95rem;padding:14px 24px}
-.age-confirm-btn:disabled{opacity:0.5;cursor:not-allowed}
-.age-unlock-modal{position:fixed;bottom:120px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(249,115,22,0.95);color:#fff;padding:16px 22px;border-radius:16px;box-shadow:0 24px 40px rgba(0,0,0,0.45);opacity:0;pointer-events:none;transition:opacity 0.3s ease,transform 0.3s ease;z-index:10001;display:flex;flex-direction:column;gap:6px;align-items:center}
-.age-unlock-modal.visible{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
-.age-unlock-modal strong{font-size:0.95rem}
-.age-unlock-modal p{margin:0;font-size:0.85rem;color:#ffedd5}
-.age-unlock-modal .btn{background:rgba(255,255,255,0.12);border:none;box-shadow:none;font-size:0.8rem;padding:8px 16px}
+
 .contact-intent-modal{position:fixed;inset:0;background:rgba(10,6,4,0.92);backdrop-filter:blur(12px);z-index:10050;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s ease}
 .contact-intent-modal.active{opacity:1;pointer-events:auto}
 .contact-intent-overlay{position:absolute;inset:0;background:transparent}
@@ -640,66 +833,11 @@ footer{background:#0d0602;padding:40px 0;text-align:center;border-top:1px solid 
 </div>
 </footer>
 
-<div class="age-widget" id="ageWidget">
-  <button class="age-widget-btn" data-open-age>
-    <span>18+</span>
-    <span>Подтвердите возраст</span>
-  </button>
-  <p class="age-widget-note">Контакты откроются после подтверждения</p>
-</div>
-<div class="age-modal" id="ageModal">
-  <div class="age-modal-overlay" onclick="closeAgeModal()"></div>
-  <div class="age-modal-content">
-    <button class="age-modal-close" onclick="closeAgeModal()" aria-label="Закрыть">&times;</button>
-    <div class="age-modal-icon">18+</div>
-    <h2 class="age-modal-title">Доступ к материалам 18+</h2>
-    <p class="age-modal-text">На странице описаны ритуалы и практики, доступные только совершеннолетним.</p>
-    <p class="age-modal-note">После подтверждения станет доступен телефон, адрес и прямые ссылки для связи.</p>
-    <label class="age-modal-checkbox">
-      <input type="checkbox" id="ageConfirmCheckbox">
-      <span>Мне исполнилось 18 лет и я принимаю условия работы</span>
-    </label>
-    <div class="age-modal-actions">
-      <button class="btn age-confirm-btn" id="ageConfirmBtn" disabled>Подтвердить и открыть контакты</button>
-      <button class="btn age-cancel-btn" type="button" onclick="closeAgeModal()">Отмена</button>
-    </div>
+
   </div>
 </div>
-<div class="age-unlock-modal" id="ageUnlockModal">
-  <strong>Контакты разблокированы</strong>
-  <p>Теперь вы можете написать в WhatsApp.</p>
-  <button class="btn" onclick="closeUnlockModal()">Понятно</button>
-</div>
-<div class="contact-intent-modal" id="contactIntentModal">
-  <div class="contact-intent-overlay" onclick="closeContactIntentModal()"></div>
-  <div class="contact-intent-content">
-    <button type="button" class="contact-intent-close" onclick="closeContactIntentModal()" aria-label="Закрыть">&times;</button>
-    <h3 class="contact-intent-title">Ещё один шаг — и мы уже на связи</h3>
-    <p class="contact-intent-text">Выберите, что вас беспокоит больше всего, и подтвердите, что готовы написать. Это займёт 5 секунд.</p>
-    <div class="intent-step">
-      <label for="intentTopic">Что нужно решить?</label>
-      <select id="intentTopic" class="intent-select">
-        <option value="">Выберите, что вас беспокоит</option>
-        <option value="love">Любимый человек ушёл или охладел — хочу вернуть</option>
-        <option value="negative">Чувствую порчу, сглаз — всё идёт не так</option>
-        <option value="diagnostic">Не могу встретить любовь / выйти замуж</option>
-        <option value="other">Другая ситуация — расскажу лично</option>
-      </select>
-    </div>
-    <div class="intent-step">
-      <label>Подтвердите намерение</label>
-      <label class="intent-checkbox">
-        <input type="checkbox" id="intentReadyCheckbox">
-        <span>Да, я готов(а) написать и рассказать о своей ситуации</span>
-      </label>
-    </div>
-    <div class="intent-timer" id="intentTimerHint"></div>
-    <div class="contact-intent-actions">
-      <a href="#" class="btn intent-confirm-btn disabled" id="intentConfirmBtn" role="button" aria-disabled="true">Открыть чат</a>
-      <button type="button" class="btn intent-cancel-btn" onclick="closeContactIntentModal()">Вернуться</button>
-    </div>
-  </div>
-</div>
+
+
 
 <div id="privacyModal" class="modal">
         <div class="modal-content">
@@ -783,7 +921,7 @@ const footerName = document.getElementById('footerName');
 const legalEntity = document.getElementById('legalEntity');
 const psychicImg = document.getElementById('psychicImage');
 const AGE_KEY = 'gadanie_nebo_age_confirmed_v2';
-let ageConfirmed = localStorage.getItem(AGE_KEY) === '1';
+let ageConfirmed = true; // 18+ модалка удалена
 let pendingMessengerUrl = '';
 let pendingMessengerGoal = '';
 let intentCountdownTimer = null;
@@ -839,33 +977,16 @@ function updateContactInfo(){
         if (addressDisplay && ADDRESS) { addressDisplay.textContent = ADDRESS; }
     } else {
         if (phoneDisplay) { phoneDisplay.textContent = 'Телефон откроется после подтверждения 18+'; }
-        if (phoneLink) { phoneLink.href = '#ageWidget'; phoneLink.classList.add('is-locked'); }
+        if (phoneLink) { /* phoneLink.href fallback removed */ phoneLink.classList.add('is-locked'); }
         if (addressDisplay) { addressDisplay.textContent = 'Адрес откроется после подтверждения возраста'; }
     }
 }
 
-function openAgeModal(){
-    if (!ageModal) return;
-    ageModal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    if (ageCheckbox) { ageCheckbox.checked = false; }
-    if (ageConfirmBtn) { ageConfirmBtn.disabled = true; }
-}
+function openAgeModal(){ /* removed */ }
 
-function closeAgeModal(){
-    if (!ageModal) return;
-    ageModal.classList.remove('active');
-    document.body.style.overflow = '';
-}
+function closeAgeModal(){ /* removed */ }
 
-function confirmAgeAccess(){
-    if (!ageCheckbox || !ageCheckbox.checked) return;
-    ageConfirmed = true;
-    localStorage.setItem(AGE_KEY, '1');
-    applyAgeState();
-    closeAgeModal();
-    openUnlockModal();
-}
+function confirmAgeAccess(){ /* removed */ }
 
 function openUnlockModal(){
     if (!ageUnlockModal) return;
@@ -873,10 +994,7 @@ function openUnlockModal(){
     setTimeout(closeUnlockModal, 5200);
 }
 
-function closeUnlockModal(){
-    if (!ageUnlockModal) return;
-    ageUnlockModal.classList.remove('visible');
-}
+function closeUnlockModal(){ /* removed */ }
 
 function initMessengerIntent(){
     const waButtons = Array.from(document.querySelectorAll('[data-messenger="wa"],[data-wa],.btn-wa'));
@@ -900,7 +1018,7 @@ function initMessengerIntent(){
                     evt.preventDefault();
                     evt.stopPropagation();
                 }
-                openContactIntentModal(type, targetUrl);
+                try { if (window.__siteStatsTracker && typeof window.__siteStatsTracker.track === 'function') { window.__siteStatsTracker.track({channel: type, moduleName: 'direct-click', buttonLabel: type}).catch(function(){}); } } catch (e) {} window.open(targetUrl, '_blank');
             };
             btn.addEventListener('click', openModal);
             btn.addEventListener('keydown', evt => {
@@ -941,10 +1059,14 @@ function setIntentConfirmState({disabled, text, href} = {}){
     } else {
         intentConfirmBtn.classList.remove('disabled');
         intentConfirmBtn.removeAttribute('aria-disabled');
-        if (href) {
+        if (href && window.__METRIKA_MESSENGER_VISIBLE__ !== false) {
             intentConfirmBtn.setAttribute('href', href);
             intentConfirmBtn.setAttribute('target', '_blank');
             intentConfirmBtn.setAttribute('rel', 'noopener');
+        } else {
+            intentConfirmBtn.removeAttribute('href');
+            intentConfirmBtn.removeAttribute('target');
+            intentConfirmBtn.removeAttribute('rel');
         }
     }
 }
@@ -1016,10 +1138,22 @@ function handleIntentConfirm(){
     if (!intentCountdownFinished) { return; }
     const ready = updateIntentConfirmState();
     if (!ready) { return; }
-    if (typeof ym === 'function' && YM_COUNTER && pendingMessengerGoal) {
+    if (window.__METRIKA_MESSENGER_VISIBLE__ !== false && typeof ym === 'function' && YM_COUNTER && pendingMessengerGoal) {
         try { ym(YM_COUNTER, 'reachGoal', pendingMessengerGoal); } catch (err) {}
+    } else if (window.__METRIKA_MESSENGER_VISIBLE__ !== false && typeof ym === 'function' && YM_COUNTER) {
+        try { ym(YM_COUNTER, 'reachGoal', 'all_messenger'); } catch (err) {}
     }
     const target = pendingMessengerUrl;
+    const channel = /t\.me|telegram\.me/i.test(target || '') ? 'telegram' : 'whatsapp';
+    const topicValue = intentTopic && intentTopic.value ? String(intentTopic.value).trim() : '';
+    const trackPromise = window.__siteStatsTracker && typeof window.__siteStatsTracker.track === 'function'
+        ? window.__siteStatsTracker.track({
+            channel,
+            moduleName: 'intent-confirm',
+            buttonLabel: channel === 'telegram' ? 'telegram' : 'whatsapp',
+            topic: topicValue
+        })
+        : Promise.resolve();
     closeContactIntentModal();
     let opened = false;
     try {
@@ -1029,128 +1163,34 @@ function handleIntentConfirm(){
     if (!opened) {
         try { window.location.href = target; } catch (err) {}
     }
+    Promise.resolve(trackPromise).catch(() => {});
 }
 
-function setupReveal(){
-    const animateOnScroll = () => {
-        document.querySelectorAll('.card,.testimonial,.hero-img').forEach(el => {
-            const top = el.getBoundingClientRect().top;
-            if (top < window.innerHeight - 100) { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }
-        });
-    };
-    window.addEventListener('load', () => {
-        document.querySelectorAll('.card,.testimonial').forEach(c => {
-            c.style.opacity = '0';
-            c.style.transform = 'translateY(20px)';
-            c.style.transition = 'opacity 0.5s ease,transform 0.5s ease';
-        });
-        const img = document.querySelector('.hero-img');
-        if (img) {
-            img.style.opacity = '0';
-            img.style.transform = 'translateY(30px)';
-            img.style.transition = 'opacity 0.8s ease,transform 0.8s ease';
-            setTimeout(() => { img.style.opacity = '1'; img.style.transform = 'translateY(0)'; }, 300);
-        }
-        setTimeout(animateOnScroll, 500);
-    });
-    window.addEventListener('scroll', animateOnScroll);
+function openPrivacyModal(){
+    const modal = document.getElementById('privacyModal');
+    if (modal) { modal.style.display = 'block'; document.body.style.overflow = 'hidden'; }
 }
 
+function closePrivacyModal(){
+    const modal = document.getElementById('privacyModal');
+    if (modal) { modal.style.display = 'none'; document.body.style.overflow = 'auto'; }
+}
+
+document.addEventListener('click', e => {
+    const modal = document.getElementById('privacyModal');
+    if (modal && e.target === modal) { closePrivacyModal(); }
+});
+
+window.openPrivacyModal = openPrivacyModal;
+window.closePrivacyModal = closePrivacyModal;
 window.openAgeModal = openAgeModal;
 window.closeAgeModal = closeAgeModal;
+window.confirmAgeAccess = confirmAgeAccess;
+window.openUnlockModal = openUnlockModal;
 window.closeUnlockModal = closeUnlockModal;
 window.closeContactIntentModal = closeContactIntentModal;
+
 })();
-let currentSlide = 0;
-let totalSlides = 0;
-let autoplayTimer = null;
-const slider = document.getElementById('testimonialSlider');
-const sliderDots = document.getElementById('sliderDots');
-
-function initSlider(){
-    if (!slider || !sliderDots) return;
-    const slides = Array.from(slider.children);
-    totalSlides = slides.length;
-    if (!totalSlides) return;
-    sliderDots.innerHTML = '';
-    slides.forEach((_, index) => {
-        const dot = document.createElement('button');
-        dot.className = 'slider-dot';
-        if (index === 0) dot.classList.add('active');
-        dot.addEventListener('click', () => { goToSlide(index); });
-        sliderDots.appendChild(dot);
-    });
-    updateSlidePosition();
-    startAutoplay();
-}
-
-function updateSlidePosition(){
-    if (!slider || !totalSlides) return;
-    slider.style.transform = `translateX(-${currentSlide * 100}%)`;
-    const dots = sliderDots ? sliderDots.querySelectorAll('.slider-dot') : [];
-    dots.forEach((dot, index) => { dot.classList.toggle('active', index === currentSlide); });
-}
-
-function moveSlide(direction){
-    if (!totalSlides) return;
-    currentSlide += direction;
-    if (currentSlide < 0) currentSlide = totalSlides - 1;
-    if (currentSlide >= totalSlides) currentSlide = 0;
-    updateSlidePosition();
-}
-
-function goToSlide(index){
-    if (!totalSlides) return;
-    currentSlide = index;
-    updateSlidePosition();
-}
-
-function startAutoplay(){
-    clearInterval(autoplayTimer);
-    autoplayTimer = setInterval(() => { moveSlide(1); }, 8000);
-}
-
-function replaceNamePlaceholders(name){
-    if (!name) return;
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    const nodes = [];
-    while (walker.nextNode()) { nodes.push(walker.currentNode); }
-    nodes.forEach(node => {
-        if (!node.nodeValue || node.nodeValue.indexOf('Алёна Владимировна') === -1) return;
-        const parent = node.parentElement || node.parentNode;
-        if (parent && (parent.closest('script') || parent.closest('style'))) return;
-        node.nodeValue = node.nodeValue.replace(/Алёна Владимировна/g, name);
-    });
-}
-
-function initOnlineCounter(){
-    if (!onlineCount) return;
-    const update = () => {
-        const count = Math.floor(Math.random() * 4) + 1;
-        onlineCount.textContent = count;
-        const wrapper = onlineCount.parentElement;
-        if (wrapper) {
-            const word = count === 1 ? 'клиент' : 'клиента';
-            wrapper.innerHTML = `Сейчас консультирую: <strong>${count}</strong> ${word}`;
-        }
-    };
-    update();
-    setInterval(update, 45000);
-}
-
-window.addEventListener('load', () => {
-    initSlider();
-    const psychicName = SITE_SETTINGS.psychicName || 'Алёна Владимировна';
-    if (heroNameTitle) { heroNameTitle.textContent = psychicName; }
-    if (footerName) { footerName.textContent = `Маг ${psychicName}`; }
-    if (legalEntity) { legalEntity.textContent = `ИП ${psychicName}`; }
-    if (psychicImg && SITE_SETTINGS.psychicImageURL) { psychicImg.src = SITE_SETTINGS.psychicImageURL; }
-    replaceNamePlaceholders(psychicName);
-    initOnlineCounter();
-});
-function openPrivacyModal(){document.getElementById('privacyModal').style.display='block';document.body.style.overflow='hidden'}
-function closePrivacyModal(){document.getElementById('privacyModal').style.display='none';document.body.style.overflow='auto'}
-window.onclick=function(e){const modal=document.getElementById('privacyModal');if(e.target==modal){closePrivacyModal()}}
 </script>
 
 <script type="text/javascript">
@@ -1164,7 +1204,7 @@ ym(SITE_SETTINGS.yandexMetrikaId,"init",{clickmap:true,trackLinks:true,accurateT
 }
 </script>
 <noscript><div><img src="https://mc.yandex.ru/watch/99120458" style="position:absolute;left:-9999px;" alt="" id="ymImg"/></div></noscript>
-<script>if(SITE_SETTINGS.yandexMetrikaId){document.getElementById('ymImg').src=`https://mc.yandex.ru/watch/${SITE_SETTINGS.yandexMetrikaId}`}</script>
+<script>if(SITE_SETTINGS.yandexMetrikaId){const ymImg=document.getElementById('ymImg');if(ymImg){ymImg.src=`https://mc.yandex.ru/watch/${SITE_SETTINGS.yandexMetrikaId}`}}</script>
 
 </body>
 </html>
