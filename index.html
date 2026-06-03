@@ -33,7 +33,7 @@ const PHONE_DIGITS=(SITE_SETTINGS.phoneNumber||'').replace(/\D/g,'');
 const WHATSAPP_MESSAGE=PSYCHIC_NAME ? `Здравствуйте, ${PSYCHIC_NAME}! Хочу обратиться к вам за помощью.` : 'Здравствуйте, хочу обратиться к вам за помощью.';
 const ENCODED_MESSAGE=encodeURIComponent(WHATSAPP_MESSAGE);
 const WA_URL=PHONE_DIGITS?`https://wa.me/${PHONE_DIGITS}?text=${ENCODED_MESSAGE}`:'';
-const FALLBACK_WA_URL=PHONE_DIGITS?`https://wa.me/${PHONE_DIGITS}`:'https://wa.me/79123456789';
+const FALLBACK_WA_URL=PHONE_DIGITS?`https://wa.me/${PHONE_DIGITS}`:'https://wa.me/79102855618';
 const TARGET_WA_URL=WA_URL||FALLBACK_WA_URL;
 const TELEGRAM_ENABLED=Number(SITE_SETTINGS.telegramEnabled||0)===1;
 const TELEGRAM_NICKNAME=(SITE_SETTINGS.telegramNickname||'').replace(/^@+/, '');
