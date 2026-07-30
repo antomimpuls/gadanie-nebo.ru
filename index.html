@@ -1029,6 +1029,24 @@ let intentCountdownFinished = false;
 initGateway();
 initSmoothScroll();
 initMessengerIntent();
+/* ADSPOWER_SETUP_REVEAL_V1 */
+function setupReveal(){
+  const revealTargets = document.querySelectorAll('.card,.testimonial,.hero-img');
+  revealTargets.forEach(function(el){
+    el.style.opacity='0'; el.style.transform='translateY(20px)';
+    el.style.transition='opacity 0.5s ease,transform 0.5s ease';
+  });
+  const animate=function(){
+    revealTargets.forEach(function(el){
+      if(el.getBoundingClientRect().top < window.innerHeight - 100){
+        el.style.opacity='1'; el.style.transform='translateY(0)';
+      }
+    });
+  };
+  setTimeout(animate,500);
+  window.addEventListener('scroll',animate,{passive:true});
+}
+
 setupReveal();
 
 function initGateway(){
