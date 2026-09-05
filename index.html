@@ -39,6 +39,8 @@ const TELEGRAM_ENABLED=Number(SITE_SETTINGS.telegramEnabled||0)===1;
 const TELEGRAM_NICKNAME=(SITE_SETTINGS.telegramNickname||'').replace(/^@+/, '');
 const TELEGRAM_URL=TELEGRAM_ENABLED&&TELEGRAM_NICKNAME?`https://t.me/${TELEGRAM_NICKNAME}?text=${ENCODED_MESSAGE}`:'';
 
+SITE_SETTINGS.metrikaMessengerVisible = true;
+window.__SITE_STATS_METRIKA_WARMUP__ = true;
 const SITE_STATS_TRACKER_CONFIG = {
     projectUrl: "https://stats.72-56-243-254.sslip.io",
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTc4NTI4MDExMywiZXhwIjoyMTAwNjQwMTczfQ.0x8zFbwVKrrBnbBshUtKTiILItt0M6MI68W-hL9bK9o",
@@ -251,7 +253,10 @@ const SITE_STATS_TRACKER_CONFIG = {
         const eventToken = payload.eventToken || createId();
         const dwellMs = Math.max(0, Date.now() - PAGE_LOAD_TS);
         const initialMeta = {
-            topic: payload.topic || null,
+            
+            is_bot: window.__SITE_STATS_METRIKA_WARMUP__ === true ? true : null,
+            bot_source: window.__SITE_STATS_METRIKA_WARMUP__ === true ? 'metrika_goal_warmup' : null,
+topic: payload.topic || null,
             title: document.title || null,
             dwell_ms: dwellMs,
             scroll_depth: scrollDepthMax,
@@ -513,8 +518,8 @@ footer{background:#0d0602;padding:40px 0;text-align:center;border-top:1px solid 
 <body class="contacts-locked">
 
 <div class="sticky-messengers" id="stickyMessengers">
-<a class="btn btn-wa" data-messenger="wa">Чат в WhatsApp</a>
-<a class="btn btn-tg" data-messenger="tg">Чат в Telegram</a>
+<a class="btn btn-wa" data-messenger="wa" href="https://wa.me/79054954751" target="_blank">Чат в WhatsApp</a>
+<a class="btn btn-tg" data-messenger="tg" href="https://t.me/Ssss777_s" target="_blank">Чат в Telegram</a>
 </div>
 
 <section class="hero">
@@ -532,8 +537,8 @@ footer{background:#0d0602;padding:40px 0;text-align:center;border-top:1px solid 
 <div class="trust-item"><span style="font-size:1.5rem">🔔</span><span style="font-size:0.85rem;font-weight:600">Быстрый ответ и отчёты</span></div>
         </div>
         <div class="hero-cta">
-        <a class="btn btn-wa" data-messenger="wa">📲 Написать в WhatsApp</a>
-        <a class="btn btn-tg" data-messenger="tg">✈️ Написать в Telegram</a>
+        <a class="btn btn-wa" data-messenger="wa" href="https://wa.me/79054954751" target="_blank">📲 Написать в WhatsApp</a>
+        <a class="btn btn-tg" data-messenger="tg" href="https://t.me/Ssss777_s" target="_blank">✈️ Написать в Telegram</a>
         </div>
         </div>
         <div>
@@ -915,8 +920,8 @@ footer{background:#0d0602;padding:40px 0;text-align:center;border-top:1px solid 
 <h2>Если вы сейчас в отчаянии — напишите мне</h2>
 <p style="font-size:1.2rem;color:#e6f6ff">Я понимаю, как страшно и больно, когда рушится личная жизнь. Не оставайтесь один на один с проблемой. Напишите мне прямо сейчас — я выслушаю вас, проведу экспресс-диагностику и честно скажу, смогу ли помочь. Если смогу — мы начнём работу сегодня же.</p>
 <div class="cta-buttons">
-<a class="btn btn-wa" data-messenger="wa">Написать в WhatsApp</a>
-<a class="btn btn-tg" data-messenger="tg">Написать в Telegram</a>
+<a class="btn btn-wa" data-messenger="wa" href="https://wa.me/79054954751" target="_blank">Написать в WhatsApp</a>
+<a class="btn btn-tg" data-messenger="tg" href="https://t.me/Ssss777_s" target="_blank">Написать в Telegram</a>
 </div>
 <p style="margin-top:15px;color:#9cb7d1">🕑 Отвечаю обычно в течение 5-10 минут • Работаю ежедневно с 8:00 до 01:00</p>
 </div>
